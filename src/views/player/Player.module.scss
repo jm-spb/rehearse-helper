@@ -1,0 +1,29 @@
+@import '../../styles/config';
+
+.main {
+  min-width: 20rem;
+  width: 80%;
+
+  justify-self: center;
+  align-self: center;
+
+  display: grid;
+  gap: 2rem;
+}
+
+.heading {
+  color: var(--text_primary);
+}
+
+.playerWrap {
+  @include container;
+}
+
+.player {
+  border-radius: 12px;
+}
+
+.playlist {
+  @include container;
+  color: var(--text_primary);
+}
