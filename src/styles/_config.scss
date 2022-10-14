@@ -1,0 +1,6 @@
+@mixin container {
+  background-color: var(--box_background);
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 0 0 0.5px var(--box_shadow);
+}
