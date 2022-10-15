@@ -2,58 +2,75 @@
 import { useState, useCallback } from 'react';
 import AudioPlayer from 'react-h5-audio-player';
 import { useDropzone } from 'react-dropzone';
-import * as musicMetadata from 'music-metadata-browser';
+import { parseBlob } from 'music-metadata-browser';
 import styles from './Player.module.scss';
 import 'react-h5-audio-player/lib/styles.css';
 
-const Player = () => {
-  const [playList, setPlayList] = useState<File[]>([]);
-  const [songPlay, setSongPlay] = useState<string | undefined>();
+interface ISongMetaData {
+  src: string;
+  artist: string;
+  album: string;
+  title: string;
+  year: number | null;
+  image: string;
+}
 
+const Player = () => {
+  const [playList, setPlayList] = useState<ISongMetaData[] | null>(null);
+  const [playingSongData, setPlayingSongData] = useState<ISongMetaData>();
+
+  console.log(playingSongData);
   console.log(playList);
 
-  const downLoadPlayList = (e: File[]) => {
-    const listsongs = [...e];
+  const imageСonverter = (img: Buffer) => {
+    const typedArray = new Uint8Array(img);
+    const stringChar = typedArray.reduce(
+      (data, byte) => data + String.fromCharCode(byte),
+      ''
+    );
+    const base64String = btoa(stringChar);
+    return `data:image/jpg;base64, ${base64String}`;
+  };
 
-    listsongs.forEach((el: any) => {
-      musicMetadata.parseBlob(el).then((tags) => {
-        if (tags) {
-          el.artist = tags.common.artist;
-          el.album = tags.common.album;
-          el.title = tags.common.title;
-          el.year = tags.common.year;
-          el.images = tags.common.picture;
-          // el.images = tags.common.picture ? imageСonverter(tags.common.picture[0].data) : null
-          // playList.push(el);
-          setPlayList((prev) => [...prev, ...listsongs]);
-        } else {
-          setPlayList((prev) => [...prev, ...listsongs]);
-        }
-      });
+  const downloadPlayList = (localFiles: File[]) => {
+    const filesList = [...localFiles];
+    const audioMetaDataPromise = Promise.all(
+      filesList.map((fileToParse) => parseBlob(fileToParse))
+    );
+
+    audioMetaDataPromise.then((audioMetaDataArray) => {
+      const metaData = audioMetaDataArray.map((tags, idx) => ({
+        src: URL.createObjectURL(filesList[idx]),
+        artist: tags.common.artist ?? 'Unknown',
+        album: tags.common.album ?? '',
+        title: tags.common.title ?? 'Unknown',
+        year: tags.common.year ?? null,
+        image: tags.common.picture ? imageСonverter(tags.common.picture[0].data) : '',
+      }));
+
+      setPlayList((prev) => (prev ? [...prev, ...metaData] : [...metaData]));
     });
-
-    // setPlayList((prev) => [...prev, ...listsongs]);
   };
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    downLoadPlayList(acceptedFiles);
+    downloadPlayList(acceptedFiles);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
 
-  const playSong = (index: number) => {
-    setSongPlay(URL.createObjectURL(playList[index]));
+  const playSong = (song: ISongMetaData) => {
+    setPlayingSongData(song);
   };
 
   return (
     <main className={styles.main}>
       <article className={styles.playerWrap}>
+        <img src={playingSongData?.image} alt="alt" />
         <AudioPlayer
           className={styles.player}
           autoPlay
-          src={songPlay}
+          src={playingSongData?.src}
           onPlay={() => console.log('onPlay')}
-          // other props here
         />
         <div {...getRootProps()}>
           <input {...getInputProps()} />
@@ -67,11 +84,16 @@ const Player = () => {
 
       <article className={styles.playlist}>
         <section>
-          {playList.map((song, idx) => (
-            <li key={song.name} onClick={() => playSong(idx)} aria-hidden="true">
-              {song.name}
-            </li>
-          ))}
+          {playList &&
+            playList.map((song) => (
+              <li
+                key={`${song.artist}-${song.title}`}
+                onClick={() => playSong(song)}
+                aria-hidden="true"
+              >
+                {`${song.artist} - ${song.title}`}
+              </li>
+            ))}
         </section>
       </article>
     </main>
